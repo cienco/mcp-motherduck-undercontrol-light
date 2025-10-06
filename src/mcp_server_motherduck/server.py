@@ -6,7 +6,8 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from .configs import SERVER_VERSION
 from .database import DatabaseClient
-from .prompt import PROMPT_TEMPLATE, PIANIFICATORE_UI_PROMPT_NAME, PIANIFICATORE_UI_INITIAL_PROMPT
+from .prompt import PROMPT_TEMPLATE
+from .prompt_it import PIANIFICATORE_UI_PROMPT_NAME, PIANIFICATORE_UI_INITIAL_PROMPT
 
 
 logger = logging.getLogger("mcp_server_motherduck")

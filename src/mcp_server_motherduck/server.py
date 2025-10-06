@@ -6,8 +6,7 @@ from mcp.server import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
 from .configs import SERVER_VERSION
 from .database import DatabaseClient
-from .prompt import PROMPT_TEMPLATE
-from .prompt_viridex import VIRIDEX_PROMPT
+from .prompt import PROMPT_TEMPLATE, PIANIFICATORE_UI_PROMPT_NAME, PIANIFICATORE_UI_INITIAL_PROMPT
 
 
 logger = logging.getLogger("mcp_server_motherduck")
@@ -21,7 +20,7 @@ def build_application(
     read_only: bool = False,
 ):
     logger.info("Starting MotherDuck MCP Server")
-    server = Server("mcp-server-motherduck")
+    server = Server("pianificatore_ui")
     db_client = DatabaseClient(
         db_path=db_path,
         motherduck_token=motherduck_token,
@@ -61,13 +60,14 @@ def build_application(
         # Check postgres and sqlite servers.
         return [
             types.Prompt(
-                name="viridex-context-prompt",
-                description="Contesto iniziale e linee guida per sfruttare l'ecosistema di gestione magazzino Viridex",
-    ),
+                name=PIANIFICATORE_UI_PROMPT_NAME,
+                description="Contesto iniziale e linee guida per pianificare e allocare risorse su progetti usando DuckDB/MotherDuck; include esempi di INSERT/UPDATE.",
+            ),
+            # Lasciamo disponibile anche il prompt generico DuckDB/MotherDuck
             types.Prompt(
                 name="duckdb-motherduck-initial-prompt",
-                description="A prompt to initialize a connection to duckdb or motherduck and start working with it",
-            )
+                description="Prompt iniziale per connettersi a DuckDB/MotherDuck e iniziare a lavorare.",
+            ),
         ]
 
     @server.get_prompt()
@@ -81,19 +81,19 @@ def build_application(
         logger.info(f"Getting prompt: {name}::{arguments}")
         # TODO: Check where and how this is used, and how to optimize this.
         # Check postgres and sqlite servers.
-        if name == "viridex-context-prompt":
+        if name == PIANIFICATORE_UI_PROMPT_NAME:
             return types.GetPromptResult(
-                description="Prompt di avvio specifico per il dominio di gestione magazzino Viridex",
+                description="Prompt di avvio per pianificatore_ui: pianificazione risorse, viste, e INSERT/UPDATE consentiti.",
                 messages=[
                     types.PromptMessage(
                         role="user",
-                        content=types.TextContent(type="text", text=VIRIDEX_PROMPT),
+                        content=types.TextContent(type="text", text=PIANIFICATORE_UI_INITIAL_PROMPT),
                     )
                 ],
             )
         elif name == "duckdb-motherduck-initial-prompt":
             return types.GetPromptResult(
-                description="Initial prompt for interacting with DuckDB/MotherDuck",
+                description="Prompt iniziale per interagire con DuckDB/MotherDuck",
                 messages=[
                     types.PromptMessage(
                         role="user",
@@ -101,10 +101,8 @@ def build_application(
                     )
                 ],
             )
-      
         else:
             raise ValueError(f"Unknown prompt: {name}")
-
 
     @server.list_tools()
     async def handle_list_tools() -> list[types.Tool]:
@@ -116,13 +114,14 @@ def build_application(
         return [
             types.Tool(
                 name="query",
-                description="Use this to execute a query on the MotherDuck or DuckDB database",
+                description="Esegui una query SQL (dialetto DuckDB) su MotherDuck/DuckDB. "
+                            "Supporta SELECT/CTE e, se richiesto, anche INSERT/UPDATE sulle tabelle autorizzate.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "SQL query to execute that is a dialect of DuckDB SQL",
+                            "description": "Query SQL (DuckDB) da eseguire: SELECT/CTE e, se necessario, INSERT/UPDATE.",
                         },
                     },
                     "required": ["query"],
